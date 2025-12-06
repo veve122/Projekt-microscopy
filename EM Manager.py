@@ -21,14 +21,44 @@ class EM_Zaznam:
 
 class EM_Databaza:
     """Spravuje databázu záznamov o práci na mikroskopoch pomocou Pandas DataFrame."""
+    
+    NAZOV_SUBORU = 'em_zaznamy.csv'
+    
     def __init__(self):
         # Inicializácia prázdneho DataFrame
         self.stlpce = ["Meno", "Dátum", "Mikroskop", "Vzorka", "Analýzy", "Dokončené"]
         self.df = pd.DataFrame(columns=self.stlpce)
+        self.nacitat_data()
+        
+    def nacitat_data(self):
+        """Načíta dáta z CSV súboru, ak existuje."""
+        try:
+            # Pandas funkcia na čítanie CSV
+            self.df = pd.read_csv(self.NAZOV_SUBORU)
+            print(f"✅ Dáta úspešne načítané zo súboru '{self.NAZOV_SUBORU}'.")
+            
+            # Pri načítaní musíme zabezpečiť správne typy dát (ak by boli stratené)
+            if 'Dátum' in self.df.columns:
+                self.df['Dátum'] = pd.to_datetime(self.df['Dátum']).dt.strftime('%Y-%m-%d')
+                
+        except FileNotFoundError:
+            # Ak súbor neexistuje, vytvorí sa prázdny DataFrame
+            print(f"ℹ️ Súbor '{self.NAZOV_SUBORU}' nebol nájdený. Vytvára sa nová prázdna databáza.")
+        except Exception as e:
+            print(f"❌ Chyba pri načítaní dát: {e}. Vytvára sa nová prázdna databáza.")
+
+    def ulozit_data(self):
+        """Uloží aktuálny DataFrame do CSV súboru."""
+        if not self.df.empty:
+            # Pandas funkcia na uloženie do CSV. index=False zabráni uloženiu riadkových čísel
+            self.df.to_csv(self.NAZOV_SUBORU, index=False)
+            print(f"💾 Dáta úspešne uložené do súboru '{self.NAZOV_SUBORU}'.")
+        else:
+            print("💾 Databáza je prázdna.")
     
     def pridat_zaznam(self, zaznam: EM_Zaznam):
-        """Pridá nový záznam do DataFrame."""
-        # Vytvoríme nový riadok ako Series (séria)
+        """Pridá nový záznam do DataFrame a uloží ho."""
+        # Vytvoríme nový riadok ako Series 
         novy_riadok = pd.Series({
             "Meno": zaznam.meno,
             "Dátum": zaznam.datum,
@@ -40,9 +70,10 @@ class EM_Databaza:
         })
         
         # Pridáme nový riadok do DataFrame
-        # Používame pd.concat na pridanie riadku, resetujeme index
         self.df = pd.concat([self.df, novy_riadok.to_frame().T], ignore_index=True)
         print("✅ Záznam bol úspešne pridaný.")
+        # Uložíme po každej zmene
+        self.ulozit_data()
     
     def zobrazit_tabulku(self):
         """Zobrazí celý DataFrame."""
@@ -87,6 +118,75 @@ class EM_Databaza:
             print("-------------------------------------------\n")
             
         return df_filtrovany
+    
+    def aktualizovat_zaznam(self):
+        """Umožní užívateľovi vybrať nedokončený záznam a aktualizovať ho."""
+        
+        # 1. Nájdeme VŠETKY nedokončené záznamy
+        nedokoncene_df = self.df[self.df['Dokončené'] == 'Nie'].copy()
+        
+        if nedokoncene_df.empty:
+            print("\n✅ Všetky záznamy sú aktuálne dokončené, nie je čo aktualizovať.")
+            return
+
+        print("\n--- 🔄 NEDOKONČENÉ ZÁZNAMY NA AKTUALIZÁCIU ---")
+        # Zobrazíme nedokončené záznamy s ich Pandas Indexom
+        print(nedokoncene_df.to_string(index=True)) 
+        print("--------------------------------------------------")
+
+        while True:
+            try:
+                # Získame od užívateľa index (číslo riadku) záznamu
+                index_na_aktualizaciu = int(input("Zadajte číslo indexu (riadku) záznamu, ktorý chcete aktualizovať, alebo -1 pre návrat: "))
+                
+                if index_na_aktualizaciu == -1:
+                    return
+                
+                # Zistíme, či zadaný index existuje v pôvodnom DataFrame
+                if index_na_aktualizaciu in self.df.index:
+                    # Zistíme, či je záznam naozaj NEDOKONČENÝ
+                    if self.df.loc[index_na_aktualizaciu, 'Dokončené'] == 'Nie':
+                        break
+                    else:
+                        print("⚠️ Zadaný index už patrí dokončenému záznamu. Vyberte iný.")
+                else:
+                    print("❌ Zadaný index sa nenašiel v databáze.")
+            except ValueError:
+                print("Prosím, zadajte platné číslo indexu.")
+                
+        # 2. Aktualizácia záznamu
+        
+        # Vzorka
+        stara_vzorka = self.df.loc[index_na_aktualizaciu, 'Vzorka']
+        nova_vzorka = input(f"Vzorka (pôvodná: {stara_vzorka}). Nová hodnota (Enter pre zachovanie pôvodnej): ")
+        if nova_vzorka:
+            self.df.loc[index_na_aktualizaciu, 'Vzorka'] = nova_vzorka
+            
+        # Analýzy (jednoduchá aktualizácia: buď zmena alebo pridanie)
+        stare_analyzy = self.df.loc[index_na_aktualizaciu, 'Analýzy']
+        nove_analyzy = input(f"Analýzy (pôvodné: {stare_analyzy}). Nové pridané analýzy (napr. EBSD,WDS) alebo Enter: ")
+        if nove_analyzy:
+            # Nové analyzy pripojíme k existujúcim a odstránime duplikáty
+            vsetky_analyzy = set(stare_analyzy.split(', ') + [a.strip() for a in nove_analyzy.split(',')])
+            self.df.loc[index_na_aktualizaciu, 'Analýzy'] = ", ".join(sorted(list(vsetky_analyzy)))
+
+        # Dokončenie
+        while True:
+            dokonceny_input = input("Označte záznam ako dokončený? (A/N): ").upper()
+            if dokonceny_input in ['A', 'ÁNO', 'YES']:
+                self.df.loc[index_na_aktualizaciu, 'Dokončené'] = 'Áno'
+                print(f"✅ Záznam {index_na_aktualizaciu} bol označený ako dokončený.")
+                break
+            elif dokonceny_input in ['N', 'NIE', 'NO']:
+                self.df.loc[index_na_aktualizaciu, 'Dokončené'] = 'Nie'
+                print(f"🔄 Záznam {index_na_aktualizaciu} bol aktualizovaný, ale ostáva nedokončený.")
+                break
+            else:
+                print("Neplatný vstup.")
+        
+        self.ulozit_data() # Uložíme zmeny na disk
+        print(f"Aktualizovaný záznam:\n{self.df.loc[index_na_aktualizaciu]}")
+
 
 def input_zaznam():
     """Získa vstupy od užívateľa a vytvorí objekt EM_Zaznam."""
@@ -159,15 +259,10 @@ def input_zaznam():
 
     return EM_Zaznam(meno, datum, mikroskop, vzorka, vybrane_analyzy, dokonceny)
 
+
 # --- Hlavná časť programu ---
 def main():
     databaza = EM_Databaza()
-    
-    # 1. Pridanie počiatočných testovacích dát
-    databaza.pridat_zaznam(EM_Zaznam("Peter K.", "2025-11-20", "Mikroskop A", "Vz. 101", ["EDX", "EBSD"], True))
-    databaza.pridat_zaznam(EM_Zaznam("Mária V.", "2025-11-21", "Mikroskop B", "Vz. 204", ["SE/BSE Imaging"], False))
-    databaza.pridat_zaznam(EM_Zaznam("Ján S.", "2025-11-21", "Mikroskop A", "Vz. 102", ["EDX", "WDS"], False))
-    databaza.pridat_zaznam(EM_Zaznam("Peter K.", "2025-11-22", "Mikroskop C", "Vz. 301", ["EBSD"], True))
     
     while True:
         print("\n==================================")
@@ -176,7 +271,7 @@ def main():
         print("1. Pridať nové meranie")
         print("2. Zobraziť všetky záznamy meraní")
         print("3. Aktualizovať/dokončiť meranie")
-        print("4. Filtrovať záznamy maraní")
+        print("4. Filtrovať záznamy meraní")
         print("5. Ukončiť program")
         
         vyber = input("\nZadajte číslo voľby: ").strip()
@@ -192,6 +287,9 @@ def main():
             databaza.zobrazit_tabulku()
             
         elif vyber == '3':
+            databaza.aktualizovat_zaznam()
+            
+        elif vyber == '4':
             print("\n--- ⚙️ MOŽNOSTI FILTROVANIA (Zadajte hodnotu alebo nechajte prázdne) ---")
             
             filter_args = {}
@@ -221,14 +319,11 @@ def main():
             else:
                 print("Neboli zadané žiadne kritériá pre filtrovanie.")
 
-        elif vyber == '4':
-            print("\nProgram bol ukončený. Dovidenia!")
-            break
-            
         elif vyber == '5':
             print("\nProgram bol ukončený. Dovidenia!")
+            databaza.ulozit_data() # Uloženie dát pred ukončením
             break
-        
+            
         else:
             print("Neplatná voľba. Skúste to znova.")
 
