@@ -1,4 +1,4 @@
-🔬 Správca Databázy Elektrónových Mikroskopov (EM Manager)
+🔬 Správca Databázy Vzoriek Elektrónových Mikroskopov (EM Manager)
 
 Jednoduchý interaktívny Python program na správu záznamov o práci na elektrónových mikroskopoch. Dáta sú uložené v tabuľkovom formáte (Pandas DataFrame) a perzistentne ukladané do lokálneho CSV súboru.
 
