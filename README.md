@@ -29,13 +29,13 @@ Tento program vyžaduje, aby bol v systéme nainštalovaný Python 3 a knižnica
 
 Popis
 
-1	Pridať nový záznam: Interaktívne zadávanie všetkých detailov práce.
+1.	Pridať nový záznam: Interaktívne zadávanie všetkých detailov práce.
 
-2	Zobraziť všetky záznamy: Vypíše kompletnú tabuľku dát (DataFrame).
+2.	Zobraziť všetky záznamy: Vypíše kompletnú tabuľku dát (DataFrame).
 
-3	Aktualizovať/Dokončiť záznam: Umožní vybrať nedokončený záznam podľa indexu a zmeniť jeho status/detaily.
+3.	Aktualizovať/Dokončiť záznam: Umožní vybrať nedokončený záznam podľa indexu a zmeniť jeho status/detaily.
 
-4	Filtrovať záznamy: Umožní filtrovať dáta podľa mena, mikroskopu alebo statusu dokončenia.
+4.	Filtrovať záznamy: Umožní filtrovať dáta podľa mena, mikroskopu alebo statusu dokončenia.
 
-5	Ukončiť program: Ukončí aplikáciu a uloží aktuálny stav databázy na disk.
+5.	Ukončiť program: Ukončí aplikáciu a uloží aktuálny stav databázy na disk.
 
